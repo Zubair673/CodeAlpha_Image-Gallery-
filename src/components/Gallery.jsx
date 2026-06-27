@@ -1,195 +1,66 @@
 import "./Gallery.css";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 function Gallery() {
-
-  const imageData = [
-
-    // Nature
-    ...Array.from({ length: 30 }, (_, i) => ({
-      url: `https://loremflickr.com/600/400/nature?random=${i + 1}`,
-      category: "Nature"
-    })),
-
-    // Animals
-    ...Array.from({ length: 30 }, (_, i) => ({
-      url: `https://loremflickr.com/600/400/animal?random=${i + 101}`,
-      category: "Animals"
-    })),
-
-    // Technology
-    ...Array.from({ length: 30 }, (_, i) => ({
-      url: `https://loremflickr.com/600/400/technology?random=${i + 201}`,
-      category: "Technology"
-    })),
-
-    // Food
-    ...Array.from({ length: 30 }, (_, i) => ({
-      url: `https://loremflickr.com/600/400/food?random=${i + 301}`,
-      category: "Food"
-    }))
-
-  ];
-
+  const [images, setImages] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [currentIndex, setCurrentIndex] = useState(null);
-  const [showMessage, setShowMessage] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const filteredImages =
-    selectedCategory === "All"
-      ? imageData
-      : imageData.filter(
-          (img) => img.category === selectedCategory
-        );
+  const API_KEY = "VGLxxvqB2xyDy2lfHVfCysg6eb7W0peIQbYxLru28RP1q9BO6gzHivF6";
 
-  const nextImage = () => {
-    setCurrentIndex((prev) =>
-      prev === filteredImages.length - 1 ? 0 : prev + 1
-    );
+  const fetchImages = async (query) => {
+    setLoading(true);
+    const url = query === "All" 
+      ? "https://api.pexels.com/v1/curated?per_page=80" 
+      : `https://api.pexels.com/v1/search?query=${query}&per_page=80`;
+
+    try {
+      const response = await fetch(url, {
+        headers: { Authorization: API_KEY }
+      });
+      const data = await response.json();
+      setImages(data.photos);
+    } catch (error) {
+      console.error("Error fetching images:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const prevImage = () => {
-    setCurrentIndex((prev) =>
-      prev === 0 ? filteredImages.length - 1 : prev - 1
-    );
-  };
-
-  const downloadImage = async () => {
-
-    const imageUrl = filteredImages[currentIndex].url;
-
-    const response = await fetch(imageUrl);
-
-    const blob = await response.blob();
-
-    const link = document.createElement("a");
-
-    link.href = URL.createObjectURL(blob);
-
-    link.download = `image-${currentIndex}.jpg`;
-
-    document.body.appendChild(link);
-
-    link.click();
-
-    document.body.removeChild(link);
-
-    setShowMessage(true);
-
-    setTimeout(() => {
-      setShowMessage(false);
-    }, 2000);
-
-  };
+  useEffect(() => {
+    fetchImages(selectedCategory);
+  }, [selectedCategory]);
 
   return (
     <>
-
       <div className="buttons">
-
-        <button
-          onClick={() => setSelectedCategory("All")}
-          className={selectedCategory === "All" ? "active" : ""}
-        >
-          All
-        </button>
-
-        <button
-          onClick={() => setSelectedCategory("Nature")}
-          className={selectedCategory === "Nature" ? "active" : ""}
-        >
-          Nature
-        </button>
-
-        <button
-          onClick={() => setSelectedCategory("Animals")}
-          className={selectedCategory === "Animals" ? "active" : ""}
-        >
-          Animals
-        </button>
-
-        <button
-          onClick={() => setSelectedCategory("Technology")}
-          className={selectedCategory === "Technology" ? "active" : ""}
-        >
-          Technology
-        </button>
-
-        <button
-          onClick={() => setSelectedCategory("Food")}
-          className={selectedCategory === "Food" ? "active" : ""}
-        >
-          Food
-        </button>
-
-      </div>
-
-      <div className="gallery">
-
-        {filteredImages.map((img, index) => (
-
-          <div className="card" key={index}>
-
-            <img
-              src={img.url}
-              alt="gallery"
-              onClick={() => setCurrentIndex(index)}
-            />
-
-          </div>
-
+        {["All", "Nature", "Animals", "Technology", "Food"].map(cat => (
+          <button key={cat} onClick={() => setSelectedCategory(cat)} className={selectedCategory === cat ? "active" : ""}>
+            {cat}
+          </button>
         ))}
-
       </div>
 
-      {currentIndex !== null && (
+      {loading ? (
+        <div className="loading">Loading Relevant Images...</div>
+      ) : (
+        <div className="gallery">
+          {images.map((img, index) => (
+            <div className="card" key={img.id}>
+              <img src={img.src.medium} alt={img.alt} onClick={() => setCurrentIndex(index)} />
+            </div>
+          ))}
+        </div>
+      )}
 
+      {currentIndex !== null && images[currentIndex] && (
         <div className="lightbox">
-
-          <span
-            className="close"
-            onClick={() => setCurrentIndex(null)}
-          >
-            ×
-          </span>
-
-          <button
-            className="prev"
-            onClick={prevImage}
-          >
-            ❮
-          </button>
-
-          <img
-            src={filteredImages[currentIndex].url}
-            alt="big"
-            className="lightbox-img"
-          />
-
-          <button
-            className="next"
-            onClick={nextImage}
-          >
-            ❯
-          </button>
-
-          <button
-            className="download-btn"
-            onClick={downloadImage}
-          >
-            Download
-          </button>
-
-        </div>
-
-      )}
-
-      {showMessage && (
-        <div className="download-message">
-          Image Downloaded Successfully ✅
+          <span className="close" onClick={() => setCurrentIndex(null)}>×</span>
+          <img src={images[currentIndex].src.large2x} alt="big" className="lightbox-img" />
+          <a href={images[currentIndex].url} target="_blank" rel="noreferrer" className="download-btn">View on Pexels</a>
         </div>
       )}
-
     </>
   );
 }
